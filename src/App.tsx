@@ -99,6 +99,8 @@ export default function App() {
   const [analyzing, setAnalyzing] = useState(false);
   const [semanticWarning, setSemanticWarning] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const detailCloseRef = useRef<HTMLButtonElement>(null);
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
 
   const basicAnalysis = useMemo(() => analyze(files), [files]);
   useEffect(() => {
@@ -123,6 +125,23 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Move focus into the file details dialog when it opens and return it to
+  // the element that opened it when it closes, so keyboard users do not
+  // lose their place.
+  useEffect(() => {
+    if (selected) {
+      if (!lastFocusedRef.current) {
+        lastFocusedRef.current =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      }
+      detailCloseRef.current?.focus();
+    } else if (lastFocusedRef.current) {
+      const target = lastFocusedRef.current;
+      lastFocusedRef.current = null;
+      if (target.isConnected) target.focus();
+    }
+  }, [selected]);
 
   const analysis = semanticResult?.files === files ? semanticResult.analysis : basicAnalysis;
   const insights = useMemo(() => architectureInsights(analysis), [analysis]);
@@ -405,7 +424,7 @@ export default function App() {
       <aside className="detail-panel liquid-panel" role="dialog" aria-modal="true" aria-label="File details"
         onMouseDown={event => event.stopPropagation()}>
         <div className="detail-head"><strong>File details</strong>
-          <button aria-label="Close file details" onClick={() => setSelected(null)}><X size={20}/></button></div>
+          <button ref={detailCloseRef} aria-label="Close file details" onClick={() => setSelected(null)}><X size={20}/></button></div>
         <div className="detail-body">
           <div className="detail-icon"><FileCode2 size={27}/></div>
           <h2>{current?.label || selectedDir}</h2><p className="file-path">{selected}</p>
